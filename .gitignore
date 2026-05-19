@@ -36,3 +36,4 @@ next-env.d.ts
 
 # placeholder — replaced by Drive
 /public/placeholder.jpg
+.vercel

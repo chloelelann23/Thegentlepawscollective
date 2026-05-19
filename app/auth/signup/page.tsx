@@ -1,19 +1,28 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const refCode = searchParams.get('ref') ?? ''
+
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [newsletter, setNewsletter] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  function callbackUrl() {
+    const base = `${window.location.origin}/auth/callback`
+    return refCode ? `${base}?ref=${refCode}` : base
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -21,30 +30,37 @@ export default function SignupPage() {
     setError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(),
       },
     })
 
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
-    } else {
-      setSuccess(true)
+      return
     }
+
+    if (newsletter) {
+      await fetch('/api/newsletter/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name }),
+      }).catch(() => {})
+    }
+
+    setSuccess(true)
   }
 
   async function handleGoogle() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: callbackUrl() },
     })
   }
 
@@ -60,6 +76,7 @@ export default function SignupPage() {
           <h1 className="font-display text-3xl text-[var(--charcoal)] mb-3">Welcome, babe!</h1>
           <p className="font-body text-base text-[#6B5B52] mb-6">
             Check your email to confirm your account. Once confirmed, you&apos;ll earn your first badge — the New Sprout 🌱
+            {refCode && ' Your referrer will earn a Matchmaker badge too!'}
           </p>
           <Link href="/auth/login" className="btn-primary">
             Go to Sign In
@@ -80,6 +97,11 @@ export default function SignupPage() {
           <div className="text-4xl mb-3">🐾</div>
           <h1 className="font-display text-3xl text-[var(--charcoal)] mb-2">Join the Collective</h1>
           <p className="font-body text-sm text-[#8B7B72]">Hot girls rescue animals. Are you one of us?</p>
+          {refCode && (
+            <p className="mt-2 text-xs font-body text-[var(--pink)] font-medium">
+              🤝 You were invited by a Collective member!
+            </p>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -108,6 +130,18 @@ export default function SignupPage() {
             minLength={8}
             required
           />
+
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newsletter}
+              onChange={(e) => setNewsletter(e.target.checked)}
+              className="w-4 h-4 rounded accent-[var(--pink)]"
+            />
+            <span className="text-xs font-body text-[#6B5B52]">
+              Send me updates &amp; news from the Collective 💌
+            </span>
+          </label>
 
           {error && (
             <p className="text-sm font-body text-[var(--red)]">{error}</p>
@@ -149,5 +183,13 @@ export default function SignupPage() {
         </p>
       </motion.div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-[var(--pink)] border-t-transparent rounded-full animate-spin" /></div>}>
+      <SignupForm />
+    </Suspense>
   )
 }

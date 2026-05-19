@@ -63,7 +63,7 @@
    - Deploy the app first (Step 5), then come back
    - Go to **Developers > Webhooks > Add endpoint**
    - URL: `https://your-domain.com/api/webhooks/stripe`
-   - Events to listen for: `checkout.session.completed`
+   - Events to listen for: `checkout.session.completed`, `customer.subscription.deleted`, `customer.subscription.updated`
    - Copy the **Signing secret** → `STRIPE_WEBHOOK_SECRET`
 
 4. For local testing, use the Stripe CLI:
@@ -73,7 +73,20 @@
 
 ---
 
-## 4. Get Instagram Basic Display API Access Token
+## 4. Set Up Brevo (Newsletter & Email)
+
+Brevo powers the newsletter signup widget in the footer and transactional emails. It's optional — the app degrades gracefully if the API key isn't set.
+
+1. Create a free account at [brevo.com](https://brevo.com)
+2. Go to **Account > SMTP & API > API Keys** and create a key → `BREVO_API_KEY`
+3. Go to **Contacts > Lists**, create a list called "Newsletter" → copy the numeric list ID → `BREVO_LIST_ID`
+4. Optionally configure a verified sender email at **Senders & IP > Senders** to match `hello@thegentlepawscollective.com`
+
+New members are automatically subscribed when they sign up with the newsletter checkbox checked.
+
+---
+
+## 5. Get Instagram Basic Display API Access Token
 
 1. Go to [Meta for Developers](https://developers.facebook.com)
 2. Create an app with **Instagram Basic Display** product
@@ -88,7 +101,7 @@
 
 ---
 
-## 5. Deploy to Vercel
+## 6. Deploy to Vercel
 
 1. Push this repository to GitHub
 2. Go to [vercel.com](https://vercel.com) and import the repository
@@ -100,7 +113,7 @@
 
 ---
 
-## 6. Add a Custom Domain (When Ready)
+## 7. Add a Custom Domain (When Ready)
 
 1. In Vercel, go to **Project > Settings > Domains**
 2. Add your domain (e.g. `thegentlepawscollective.com`)
@@ -111,7 +124,7 @@
 
 ---
 
-## 7. Managing Content Going Forward
+## 8. Managing Content Going Forward
 
 ### Adding Events
 - Option A: Use the Admin Panel at `/admin` (requires admin role in database)
@@ -147,7 +160,14 @@
 
 ---
 
-## 8. Local Development
+### Approving Rescue Stories
+- Stories submitted by members appear in Admin Panel > Stories tab
+- Review and approve/reject from there
+- Approved stories are published to `/community/rescue-stories` instantly
+
+---
+
+## 9. Local Development
 
 ```bash
 # Install dependencies

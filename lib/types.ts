@@ -139,3 +139,44 @@ export interface StatsBar {
   totalCharities: number
   totalEvents: number
 }
+
+export interface Referral {
+  id: string
+  referrer_id: string
+  referred_id: string
+  created_at: string
+}
+
+export type SubscriptionStatus = 'active' | 'cancelled' | 'past_due'
+
+export interface Subscription {
+  id: string
+  user_id: string | null
+  charity_id: string
+  stripe_subscription_id: string
+  stripe_customer_id: string
+  amount: number
+  status: SubscriptionStatus
+  created_at: string
+  charity?: Charity
+}
+
+export type StoryStatus = 'pending' | 'approved' | 'rejected'
+
+export interface RescueStory {
+  id: string
+  author_id: string | null
+  animal_name: string
+  animal_type: string
+  story_title: string
+  slug: string | null
+  story_content: string | null
+  outcome: string | null
+  image_drive_file_id: string | null
+  image_storage_path: string | null
+  status: StoryStatus
+  submitted_at: string
+  published_at: string | null
+  author_name: string | null
+  author?: User | null
+}

@@ -54,6 +54,58 @@ export async function createDonationCheckout({
   return session
 }
 
+export async function createMonthlyGivingCheckout({
+  charityId,
+  charityName,
+  amount,
+  userId,
+  userEmail,
+  successUrl,
+  cancelUrl,
+}: {
+  charityId: string
+  charityName: string
+  amount: number
+  userId?: string
+  userEmail?: string
+  successUrl: string
+  cancelUrl: string
+}) {
+  const stripe = getStripe()
+
+  const priceData = await stripe.prices.create({
+    currency: 'usd',
+    unit_amount: Math.round(amount * 100),
+    recurring: { interval: 'month' },
+    product_data: {
+      name: `Monthly giving to ${charityName}`,
+      metadata: { charityId },
+    },
+  })
+
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    customer_email: userEmail,
+    line_items: [{ price: priceData.id, quantity: 1 }],
+    metadata: {
+      charityId,
+      userId: userId ?? '',
+      amount: amount.toString(),
+      type: 'monthly',
+    },
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  })
+
+  return session
+}
+
+export async function cancelStripeSubscription(subscriptionId: string) {
+  const stripe = getStripe()
+  return stripe.subscriptions.cancel(subscriptionId)
+}
+
 export function constructWebhookEvent(payload: string | Buffer, signature: string) {
   const stripe = getStripe()
   return stripe.webhooks.constructEvent(

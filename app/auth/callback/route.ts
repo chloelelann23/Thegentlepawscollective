@@ -1,11 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { awardNewSproutBadge } from '@/lib/badges'
+import { awardNewSproutBadge, awardMatchmakerBadge } from '@/lib/badges'
 import { createServiceClient } from '@/lib/supabase/server'
+import { awardPoints } from '@/lib/points'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const refCode = searchParams.get('ref')
   const redirect = searchParams.get('redirect') ?? '/'
 
   if (code) {
@@ -30,6 +32,34 @@ export async function GET(request: NextRequest) {
           .from('users')
           .update({ points: 50 })
           .eq('id', data.user.id)
+
+        // Process referral if present
+        if (refCode) {
+          const { data: referrer } = await service
+            .from('users')
+            .select('id')
+            .eq('referral_code', refCode)
+            .single()
+
+          if (referrer && referrer.id !== data.user.id) {
+            await service.from('referrals').insert({
+              referrer_id: referrer.id,
+              referred_id: data.user.id,
+            }).then(() => {})
+
+            await service
+              .from('users')
+              .update({ referred_by: referrer.id })
+              .eq('id', data.user.id)
+
+            // Referrer gets 100 pts + Matchmaker badge
+            await awardPoints(service, referrer.id, 'REFERRAL_AWARD')
+            await awardMatchmakerBadge(referrer.id)
+
+            // New member gets 25 bonus pts for being referred (on top of 50 from JOIN)
+            await awardPoints(service, data.user.id, 'REFERRED_JOIN')
+          }
+        }
       }
     }
   }

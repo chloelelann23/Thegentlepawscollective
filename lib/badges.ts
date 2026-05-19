@@ -6,6 +6,9 @@ export const BADGE_NAMES = {
   TOP_DONOR: 'Top Donor',
   RECAP_HERO: 'Recap Hero',
   AMBASSADOR: 'Ambassador',
+  MATCHMAKER: 'Matchmaker',
+  SUSTAINER: 'Sustainer',
+  STORYTELLER: 'Storyteller',
 } as const
 
 export async function getBadgeByName(name: string) {
@@ -94,4 +97,16 @@ export async function awardEventBadge(userId: string, eventId: string): Promise<
   await supabase
     .from('user_badges')
     .insert({ user_id: userId, badge_id: event.badge_reward })
+}
+
+export async function awardMatchmakerBadge(userId: string): Promise<void> {
+  await awardBadge(userId, BADGE_NAMES.MATCHMAKER)
+}
+
+export async function awardSustainerBadge(userId: string): Promise<void> {
+  await awardBadge(userId, BADGE_NAMES.SUSTAINER)
+}
+
+export async function awardStorytellerBadge(userId: string): Promise<void> {
+  await awardBadge(userId, BADGE_NAMES.STORYTELLER)
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import NewsletterWidget from './NewsletterWidget'
 
 function PawPrintSVG() {
   return (
@@ -25,7 +26,7 @@ export default function Footer() {
 
       <div className="max-w-7xl mx-auto px-6 py-16">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
+          {/* Brand + newsletter */}
           <div className="md:col-span-2">
             <h3 className="font-display text-2xl text-[var(--white)] mb-2">
               The Gentle Paws Collective
@@ -33,10 +34,12 @@ export default function Footer() {
             <p className="slogan text-xl text-[var(--pink)] mb-4">
               Hot Girls Rescue Animals
             </p>
-            <p className="font-body text-sm text-[#B0A090] leading-relaxed max-w-xs">
+            <p className="font-body text-sm text-[#B0A090] leading-relaxed max-w-xs mb-6">
               A community of girls who rescue, rehabilitate, and rehome animals in need.
               Together we make a difference, one paw at a time.
             </p>
+
+            <NewsletterWidget />
 
             {/* Social links */}
             <div className="flex gap-3 mt-6">
@@ -69,13 +72,14 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Links */}
+          {/* Explore links */}
           <div>
             <h4 className="font-display text-lg text-[var(--white)] mb-4">Explore</h4>
             <ul className="space-y-2">
               {[
                 { href: '/events', label: 'Events' },
                 { href: '/community', label: 'Community' },
+                { href: '/community/rescue-stories', label: 'Rescue Stories' },
                 { href: '/charities', label: 'Give' },
                 { href: '/blog', label: 'Stories' },
               ].map((link) => (
@@ -98,6 +102,7 @@ export default function Footer() {
                 { href: '/auth/signup', label: 'Become a Member' },
                 { href: '/profile', label: 'Ambassador Program' },
                 { href: '/charities', label: 'Make a Donation' },
+                { href: '/community/rescue-stories/submit', label: 'Share a Story' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link

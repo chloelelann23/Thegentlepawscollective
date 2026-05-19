@@ -11,8 +11,9 @@ import Image from 'next/image'
 const navLinks = [
   { href: '/events', label: 'Events' },
   { href: '/community', label: 'Community' },
+  { href: '/community/rescue-stories', label: 'Rescue Stories' },
   { href: '/charities', label: 'Give' },
-  { href: '/blog', label: 'Stories' },
+  { href: '/blog', label: 'Blog' },
 ]
 
 export default function Navbar() {

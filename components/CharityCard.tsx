@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import type { Charity } from '@/lib/types'
 import ProgressBar from './ui/ProgressBar'
 import DonateButton from './DonateButton'
+import MonthlyGivingButton from './MonthlyGivingButton'
 import DriveImage from './DriveImage'
 
 interface CharityCardProps {
@@ -81,6 +82,7 @@ export default function CharityCard({ charity, index = 0 }: CharityCardProps) {
         </div>
 
         <DonateButton charityId={charity.id} charityName={charity.name} />
+        <MonthlyGivingButton charityId={charity.id} charityName={charity.name} />
       </div>
     </motion.div>
   )

@@ -5,7 +5,8 @@ import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import BadgeCard from '@/components/BadgeCard'
-import type { User, UserBadge, Event, Donation, AmbassadorApplication } from '@/lib/types'
+import BadgeShareModal from '@/components/BadgeShareModal'
+import type { User, UserBadge, Event, Donation, AmbassadorApplication, Subscription, Badge } from '@/lib/types'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -13,12 +14,19 @@ export default function ProfilePage() {
   const [badges, setBadges] = useState<UserBadge[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [donations, setDonations] = useState<Donation[]>([])
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [application, setApplication] = useState<AmbassadorApplication | null>(null)
   const [rank, setRank] = useState<number | null>(null)
+  const [referralCode, setReferralCode] = useState<string | null>(null)
+  const [referralCount, setReferralCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showAmbassadorForm, setShowAmbassadorForm] = useState(false)
   const [ambassadorForm, setAmbassadorForm] = useState({ why: '', experience: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [shareBadge, setShareBadge] = useState<Badge | null>(null)
+  const [referralCopied, setReferralCopied] = useState(false)
+  const [cancellingSubId, setCancellingSubId] = useState<string | null>(null)
+  const [newsletterStatus, setNewsletterStatus] = useState<'idle' | 'loading' | 'done'>('idle')
 
   useEffect(() => {
     const supabase = createClient()
@@ -32,24 +40,32 @@ export default function ProfilePage() {
         { data: userBadges },
         { data: rsvps },
         { data: userDonations },
+        { data: userSubs },
         { data: app },
         { data: allUsers },
+        { data: referrals },
       ] = await Promise.all([
-        supabase.from('users').select('*').eq('id', authUser.id).single(),
+        supabase.from('users').select('*, referral_code').eq('id', authUser.id).single(),
         supabase.from('user_badges').select('*, badge:badges(*)').eq('user_id', authUser.id).order('earned_at', { ascending: false }),
         supabase.from('event_rsvps').select('*, event:events(*)').eq('user_id', authUser.id).order('created_at', { ascending: false }),
         supabase.from('donations').select('*, charity:charities(name, emoji)').eq('user_id', authUser.id).order('created_at', { ascending: false }),
+        supabase.from('subscriptions').select('*, charity:charities(name, emoji)').eq('user_id', authUser.id).eq('status', 'active').order('created_at', { ascending: false }),
         supabase.from('ambassador_applications').select('*').eq('user_id', authUser.id).single(),
         supabase.from('users').select('id, points').order('points', { ascending: false }),
+        supabase.from('referrals').select('id').eq('referrer_id', authUser.id),
       ])
 
-      setUser(profile as User)
+      const profileData = profile as (User & { referral_code?: string })
+      setUser(profileData as User)
+      setReferralCode(profileData?.referral_code ?? null)
       setBadges(userBadges as UserBadge[] ?? [])
       setEvents(rsvps?.map((r: any) => r.event).filter(Boolean) as Event[] ?? [])
       setDonations(userDonations as Donation[] ?? [])
+      setSubscriptions(userSubs as Subscription[] ?? [])
       setApplication(app as AmbassadorApplication | null)
+      setReferralCount(referrals?.length ?? 0)
 
-      if (allUsers && profile) {
+      if (allUsers && profileData) {
         const userRank = allUsers.findIndex((u) => u.id === authUser.id) + 1
         setRank(userRank > 0 ? userRank : null)
       }
@@ -81,6 +97,38 @@ export default function ProfilePage() {
     setSubmitting(false)
   }
 
+  async function cancelSubscription(subId: string) {
+    setCancellingSubId(subId)
+    const res = await fetch('/api/subscriptions/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscriptionId: subId }),
+    })
+    if (res.ok) {
+      setSubscriptions((prev) => prev.filter((s) => s.id !== subId))
+    }
+    setCancellingSubId(null)
+  }
+
+  async function handleNewsletterUnsubscribe() {
+    if (!user) return
+    setNewsletterStatus('loading')
+    await fetch('/api/newsletter/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, unsubscribe: true }),
+    })
+    setNewsletterStatus('done')
+  }
+
+  function copyReferralLink() {
+    if (!referralCode) return
+    const link = `${window.location.origin}/auth/signup?ref=${referralCode}`
+    navigator.clipboard.writeText(link)
+    setReferralCopied(true)
+    setTimeout(() => setReferralCopied(false), 2000)
+  }
+
   if (loading) {
     return (
       <div className="pt-16 min-h-screen flex items-center justify-center">
@@ -99,6 +147,14 @@ export default function ProfilePage() {
 
   return (
     <div className="pt-16 min-h-screen">
+      {shareBadge && (
+        <BadgeShareModal
+          badge={shareBadge}
+          userName={user.full_name ?? user.email.split('@')[0]}
+          onClose={() => setShareBadge(null)}
+        />
+      )}
+
       {/* Hero/Profile header */}
       <div className="bg-gradient-to-b from-[var(--cream)] to-[var(--white)] py-16 px-6">
         <div className="max-w-4xl mx-auto">
@@ -160,13 +216,85 @@ export default function ProfilePage() {
             <h2 className="font-display text-2xl text-[var(--charcoal)] mb-6">My Badges</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {badges.map((ub, i) => (
-                <BadgeCard
-                  key={ub.id}
-                  badge={ub.badge as any}
-                  earned
-                  earnedAt={ub.earned_at}
-                  index={i}
-                />
+                <div key={ub.id} className="relative group">
+                  <BadgeCard
+                    badge={ub.badge as any}
+                    earned
+                    earnedAt={ub.earned_at}
+                    index={i}
+                  />
+                  <button
+                    onClick={() => setShareBadge(ub.badge as any)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-1.5 text-xs shadow-sm hover:bg-[var(--pink)] hover:text-white"
+                    title="Share badge"
+                  >
+                    ↗
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Referral section */}
+        {referralCode && (
+          <section className="card-cream p-8 mb-12">
+            <div className="flex items-start gap-4">
+              <div className="text-3xl">🤝</div>
+              <div className="flex-1">
+                <h2 className="font-display text-2xl text-[var(--charcoal)] mb-1">Invite Your Babes</h2>
+                <p className="font-body text-sm text-[#6B5B52] mb-4">
+                  Share your link and earn <strong>100 points</strong> + the <strong>Matchmaker 🤝</strong> badge for every friend who joins.
+                  You&apos;ve already referred <strong>{referralCount}</strong> {referralCount === 1 ? 'person' : 'people'}.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/signup?ref=${referralCode}`}
+                    className="input flex-1 text-sm bg-white"
+                  />
+                  <button
+                    onClick={copyReferralLink}
+                    className="btn-primary shrink-0 text-sm"
+                  >
+                    {referralCopied ? '✓ Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Monthly Giving (active subscriptions) */}
+        {subscriptions.length > 0 && (
+          <section className="mb-12">
+            <h2 className="font-display text-2xl text-[var(--charcoal)] mb-6">Monthly Giving 🌿</h2>
+            <div className="space-y-3">
+              {subscriptions.map((sub: any) => (
+                <motion.div
+                  key={sub.id}
+                  initial={{ opacity: 0, x: -16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="card p-4 flex items-center gap-4"
+                >
+                  <div className="text-2xl">{sub.charity?.emoji ?? '🌿'}</div>
+                  <div className="flex-1">
+                    <h4 className="font-display text-base text-[var(--charcoal)]">
+                      {sub.charity?.name ?? 'Charity'}
+                    </h4>
+                    <p className="text-xs font-body text-[#B0A090]">Active monthly giving</p>
+                  </div>
+                  <span className="font-display text-lg text-[var(--charcoal)]">
+                    ${Number(sub.amount).toFixed(0)}/mo
+                  </span>
+                  <button
+                    onClick={() => cancelSubscription(sub.id)}
+                    disabled={cancellingSubId === sub.id}
+                    className="text-xs font-body text-[#B0A090] hover:text-[var(--red)] transition-colors shrink-0"
+                  >
+                    {cancellingSubId === sub.id ? 'Cancelling…' : 'Cancel'}
+                  </button>
+                </motion.div>
               ))}
             </div>
           </section>
@@ -239,7 +367,7 @@ export default function ProfilePage() {
         )}
 
         {/* Ambassador section */}
-        <section className="card-cream p-8">
+        <section className="card-cream p-8 mb-8">
           <div className="flex items-start justify-between mb-4">
             <div>
               <h2 className="font-display text-2xl text-[var(--charcoal)] mb-1">Ambassador Program 🎀</h2>
@@ -312,6 +440,21 @@ export default function ProfilePage() {
               className="btn-pink"
             >
               Apply to be an Ambassador 🎀
+            </button>
+          )}
+        </section>
+
+        {/* Newsletter unsubscribe */}
+        <section className="text-center">
+          {newsletterStatus === 'done' ? (
+            <p className="text-sm font-body text-[#8B7B72]">You&apos;ve been unsubscribed from our newsletter.</p>
+          ) : (
+            <button
+              onClick={handleNewsletterUnsubscribe}
+              disabled={newsletterStatus === 'loading'}
+              className="text-xs font-body text-[#B0A090] hover:text-[var(--charcoal)] transition-colors"
+            >
+              {newsletterStatus === 'loading' ? 'Unsubscribing…' : 'Unsubscribe from newsletter'}
             </button>
           )}
         </section>

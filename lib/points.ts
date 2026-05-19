@@ -5,6 +5,10 @@ export const POINTS = {
   DONATE: 75,
   SUBMIT_PHOTO: 30,
   BECOME_AMBASSADOR: 200,
+  REFERRAL_AWARD: 100,
+  REFERRED_JOIN: 25,
+  MONTHLY_GIVING: 50,
+  SUBMIT_STORY: 30,
 } as const
 
 export type PointAction = keyof typeof POINTS

@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import type { Event, BlogPost, Charity, AmbassadorApplication, Badge, User, Donation } from '@/lib/types'
+import type { Event, BlogPost, Charity, AmbassadorApplication, Badge, User, Donation, RescueStory } from '@/lib/types'
 
-type AdminTab = 'events' | 'blog' | 'charities' | 'ambassadors' | 'badges' | 'donations'
+type AdminTab = 'events' | 'blog' | 'charities' | 'ambassadors' | 'badges' | 'donations' | 'stories'
 
 export default function AdminPage() {
   const router = useRouter()
@@ -22,6 +22,7 @@ export default function AdminPage() {
   const [allBadges, setAllBadges] = useState<Badge[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [donations, setDonations] = useState<Donation[]>([])
+  const [stories, setStories] = useState<RescueStory[]>([])
 
   // Form states
   const [showEventForm, setShowEventForm] = useState(false)
@@ -50,7 +51,7 @@ export default function AdminPage() {
   async function loadAll(supabase: any) {
     const [
       { data: evts }, { data: psts }, { data: chrs }, { data: apps },
-      { data: bdgs }, { data: usrs }, { data: dnts },
+      { data: bdgs }, { data: usrs }, { data: dnts }, { data: strs },
     ] = await Promise.all([
       supabase.from('events').select('*').order('date', { ascending: false }),
       supabase.from('blog_posts').select('*').order('published_at', { ascending: false }),
@@ -59,6 +60,7 @@ export default function AdminPage() {
       supabase.from('badges').select('*'),
       supabase.from('users').select('*').order('created_at', { ascending: false }),
       supabase.from('donations').select('*, user:users(email), charity:charities(name)').order('created_at', { ascending: false }),
+      supabase.from('rescue_stories').select('*, author:users(full_name, email)').order('submitted_at', { ascending: false }),
     ])
     setEvents(evts ?? [])
     setPosts(psts ?? [])
@@ -67,6 +69,7 @@ export default function AdminPage() {
     setAllBadges(bdgs ?? [])
     setAllUsers(usrs ?? [])
     setDonations(dnts ?? [])
+    setStories(strs ?? [])
   }
 
   async function createEvent() {
@@ -156,6 +159,15 @@ export default function AdminPage() {
     )
   }
 
+  async function updateStoryStatus(storyId: string, status: 'approved' | 'rejected') {
+    const supabase = createClient()
+    await supabase.from('rescue_stories').update({
+      status,
+      published_at: status === 'approved' ? new Date().toISOString() : null,
+    }).eq('id', storyId)
+    await loadAll(supabase)
+  }
+
   const tabs: { key: AdminTab; label: string; emoji: string }[] = [
     { key: 'events', label: 'Events', emoji: '✨' },
     { key: 'blog', label: 'Blog', emoji: '📝' },
@@ -163,6 +175,7 @@ export default function AdminPage() {
     { key: 'ambassadors', label: 'Ambassadors', emoji: '🎀' },
     { key: 'badges', label: 'Badges', emoji: '🏅' },
     { key: 'donations', label: 'Donations', emoji: '💳' },
+    { key: 'stories', label: 'Stories', emoji: '📖' },
   ]
 
   return (
@@ -418,6 +431,63 @@ export default function AdminPage() {
                   }`}>{badge.rarity}</span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Rescue Stories Tab */}
+        {activeTab === 'stories' && (
+          <div>
+            <h2 className="font-display text-2xl text-[var(--charcoal)] mb-6">
+              Rescue Stories ({stories.length})
+            </h2>
+            <div className="space-y-4">
+              {(stories as any[]).map((story) => (
+                <div key={story.id} className="card p-6">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <h4 className="font-display text-lg text-[var(--charcoal)]">{story.story_title}</h4>
+                      <p className="text-xs font-body text-[#B0A090]">
+                        {story.animal_name} ({story.animal_type}) ·{' '}
+                        {story.author_name ?? story.author?.full_name ?? 'Anonymous'} ·{' '}
+                        {new Date(story.submitted_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-body font-medium px-3 py-1 rounded-full ml-4 shrink-0 ${
+                      story.status === 'approved' ? 'bg-green-100 text-green-700' :
+                      story.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {story.status}
+                    </span>
+                  </div>
+                  <p className="text-sm font-body text-[#4A3F38] line-clamp-3 mb-4">
+                    {story.story_content}
+                  </p>
+                  {story.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => updateStoryStatus(story.id, 'approved')}
+                        className="btn-primary text-xs !py-2 !px-4"
+                      >
+                        Approve & Publish
+                      </button>
+                      <button
+                        onClick={() => updateStoryStatus(story.id, 'rejected')}
+                        className="btn-red text-xs !py-2 !px-4"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {stories.length === 0 && (
+                <div className="text-center py-12 card">
+                  <div className="text-4xl mb-3">📖</div>
+                  <p className="font-body text-sm text-[#8B7B72]">No stories submitted yet.</p>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -45,11 +45,12 @@ export default function EventCard({ event, index = 0, hasRsvp, onRsvp, loading }
       className="card group hover:shadow-soft-lg transition-all duration-300"
     >
       <Link href={`/events/${event.slug}`} className="block">
-        <div className="relative h-48 overflow-hidden">
+        <div className="relative h-56 overflow-hidden">
           <DriveImage
             drivePath={event.cover_image_drive_path}
             alt={event.title}
             fill
+            fallbackSrc={`https://picsum.photos/seed/event-${event.id}/700/420`}
             className="group-hover:scale-105 transition-transform duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />

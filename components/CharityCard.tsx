@@ -22,20 +22,28 @@ export default function CharityCard({ charity, index = 0 }: CharityCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="card hover:shadow-soft-lg transition-all duration-300"
+      className="card hover:shadow-soft-lg transition-all duration-300 overflow-hidden"
     >
-      <div className="relative h-44 overflow-hidden bg-[var(--cream)]">
+      <div className="relative h-52 overflow-hidden bg-[var(--cream)]">
         {charity.drive_image_path ? (
           <DriveImage
             drivePath={charity.drive_image_path}
             alt={charity.name}
             fill
-            className="object-contain p-6"
+            className="object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-6xl">
-            {charity.emoji}
-          </div>
+          <>
+            <DriveImage
+              drivePath={null}
+              alt={charity.name}
+              fill
+              fallbackSrc={`https://picsum.photos/seed/charity-${charity.id}/700/400`}
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[var(--charcoal)]/60 to-transparent" />
+            <div className="absolute bottom-3 left-4 text-4xl">{charity.emoji}</div>
+          </>
         )}
       </div>
 

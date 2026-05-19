@@ -21,14 +21,15 @@ export default function BlogCard({ post, index = 0 }: BlogCardProps) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.08 }}
-      className="card group hover:shadow-soft-lg transition-all duration-300"
+      className="card group hover:shadow-soft-lg transition-all duration-300 border-t-4 border-t-[var(--pink)]"
     >
       <Link href={`/blog/${post.slug}`} className="block">
-        <div className="relative h-52 overflow-hidden">
+        <div className="relative h-56 overflow-hidden">
           <DriveImage
             drivePath={post.cover_image_drive_path}
             alt={post.title}
             fill
+            fallbackSrc={`https://picsum.photos/seed/blog-${post.id}/700/460`}
             className="group-hover:scale-105 transition-transform duration-500"
           />
           {post.tag && (
